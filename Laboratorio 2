@@ -1,0 +1,165 @@
+Aritmética digital en Colab
+
+---------------Implementa add8(a,b) que retorne:--------------
+sum8 (0..255)
+carry_out (0/1)
+overflow_signed (0/1) para suma en int8 (dos complementos)
+#Codigo
+a8 = to_uint8(a)
+    b8 = to_uint8(b)
+
+    s = a8 + b8
+
+    sum8 = s & 0xFF
+    carry_out = 1 if s > 0xFF else 0
+    overflow_signed = overflow_add_int8(a8, b8, sum8)
+
+    return Add8Result(sum8, carry_out, overflow_signed)
+
+--------------Implementa sub8(a,b) para a - b que retorne:-------------------
+diff8 (0..255)
+borrow_out (0/1) unsigned
+overflow_signed (0/1) para int8
+
+a8 = to_uint8(a)
+    b8 = to_uint8(b)
+
+    d = a8 - b8
+
+    diff8 = d & 0xFF
+    borrow_out = 1 if a8 < b8 else 0
+    overflow_signed = overflow_sub_int8(a8, b8, diff8)
+
+    return Sub8Result(diff8, borrow_out, overflow_signed)
+
+------------------Estudios de caso interactivos----------------------
+
+for area in [100, 200, 400, 800]:
+    p = FabParams(300, 6000, area, 0.0005)
+    cost = cost_per_good_die(p, 10)
+    print("Área del chip:", area, "mm^2  →  Costo por chip:", cost)
+# ayuda con la IA
+def dynamic_power(C, V, f):
+    return C * (V**2) * f
+
+C = 1e-9
+
+for V in [0.8, 1.0, 1.2]:
+    p = dynamic_power(C, V, 2e9)
+    print("Voltaje:", V, "Potencia:", p)
+
+----------------Variación de área----------------------------
+
+import pandas as pd
+
+areas = [150, 200, 300]
+results = []
+
+for area in areas:
+    # Create a new FabParams object for each area, keeping other parameters from 'base'
+    current_params = FabParams(
+        wafer_diameter_mm=base.wafer_diameter_mm,
+        wafer_cost_usd=base.wafer_cost_usd,
+        die_area_mm2=area,
+        defect_density_per_mm2=base.defect_density_per_mm2,
+        alpha=base.alpha
+    )
+
+    dpw = dies_per_wafer_approx(current_params.wafer_diameter_mm, current_params.die_area_mm2)
+    Y = yield_neg_binomial(current_params.defect_density_per_mm2, current_params.die_area_mm2, current_params.alpha)
+    cost = cost_per_good_die(current_params, packaging_test_usd=10)
+
+    results.append({
+        "area_mm2": area,
+        "dies_per_wafer": dpw,
+        "yield": f"{Y:.4f}", # Format yield for better readability
+        "cost_per_good_die_usd": f"{cost:.2f}" # Format cost for better readability
+    })
+
+df_results = pd.DataFrame(results)
+display(df_results)
+
+
+---------------------Amortización simple------------------------
+
+# Ejercicio 1.2 — Amortización simple
+
+capex_usd = 1_000_000_000
+wafers_per_month = 20000
+months = 60
+
+params = FabParams(300, 6000, 200, 0.0005)
+
+# costo normal por die bueno
+cost_without_amort = cost_per_good_die(params, packaging_test_usd=10)
+
+# calcular costo efectivo del wafer incluyendo amortización
+wafer_cost_effective = params.wafer_cost_usd + capex_usd / (wafers_per_month * months)
+
+# crear nuevos parámetros con el costo actualizado
+params_amort = FabParams(
+    wafer_diameter_mm=params.wafer_diameter_mm,
+    wafer_cost_usd=wafer_cost_effective,
+    die_area_mm2=params.die_area_mm2,
+    defect_density_per_mm2=params.defect_density_per_mm2,
+    alpha=params.alpha
+)
+
+# costo con amortización
+cost_with_amort = cost_per_good_die(params_amort, packaging_test_usd=10)
+
+print("Costo sin amortización:", cost_without_amort)
+print("Costo con amortización:", cost_with_amort)
+
+-------------------------------  Potencia y energía--------------------
+
+# Configuración base (cfg1)
+cfg1 = SystemConfig(
+    name="Base",
+    cpu_w=120.0,     # CPU watts
+    dram_w=40.0,     # DRAM watts
+    storage_w=10.0,  # Storage watts
+    net_w=5.0        # Network watts
+)
+
+# Configuración 2 con speedup (cfg2)
+cfg2 = SystemConfig(
+    name="Optimized",
+    cpu_w=150.0,     # CPU más rápida
+    dram_w=45.0,
+    storage_w=10.0,
+    net_w=5.0
+)
+
+runtime_cfg1 = t_base
+runtime_cfg2 = t_base / speedup_cfg2
+
+energy_cfg1 = energy_joules(cfg1, runtime_cfg1)
+energy_cfg2 = energy_joules(cfg2, runtime_cfg2)
+
+#se genera las tablas resultados
+import pandas as pd
+
+results = [
+    {
+        "Config": cfg1.name,
+        "CPU_W": cfg1.cpu_w,
+        "DRAM_W": cfg1.dram_w,
+        "Storage_W": cfg1.storage_w,
+        "Network_W": cfg1.net_w,
+        "Runtime_s": runtime_cfg1,
+        "Energy_J": energy_cfg1
+    },
+    {
+        "Config": cfg2.name,
+        "CPU_W": cfg2.cpu_w,
+        "DRAM_W": cfg2.dram_w,
+        "Storage_W": cfg2.storage_w,
+        "Network_W": cfg2.net_w,
+        "Runtime_s": runtime_cfg2,
+        "Energy_J": energy_cfg2
+    }
+]
+
+df_energy = pd.DataFrame(results)
+display(df_energy)
